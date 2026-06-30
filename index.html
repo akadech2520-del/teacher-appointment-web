@@ -455,6 +455,11 @@ function getCompletionDateText(dateStr) {
   if(!parsed) return 'วันที่.......... เดือน.................... พ.ศ. ..........';
   return formatThaiLongDate(addMonths(parsed, 24));
 }
+function getFullSchoolName(value) {
+  const name = String(value || '').trim();
+  if (!name) return 'โรงเรียน................................................';
+  return name.indexOf('โรงเรียน') === 0 ? name : 'โรงเรียน' + name;
+}
 function escapeHtml(value) {
   return String(value || '').replace(/[&<>"']/g, function(ch) {
     return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[ch];
@@ -1181,31 +1186,32 @@ window.printAppointmentOrder = function() {
   const c2 = escapeHtml(ap.c2 || 'นาย/นาง/นางสาว....................................');
   const c3 = escapeHtml(ap.c3 || 'ผู้ทรงคุณวุฒิอื่นจากภายนอกสถานศึกษา');
   const c3Pos = escapeHtml(ap.c3Pos || '.................');
-  const schoolName = escapeHtml(teacher.school || '................................................');
+  const schoolFullName = escapeHtml(getFullSchoolName(teacher.school));
   const teacherName = escapeHtml(teacher.name || 'นาย/นาง/นางสาว................................................');
   const startDateText = escapeHtml(formatThaiLongDateInput(teacher.startDate));
   const completeDateText = escapeHtml(getCompletionDateText(teacher.startDate));
   const c1SignatureSrc = getSignatureImageSrc(ap, 'c1');
   const c1SignatureHtml = c1SignatureSrc ? '<img class="signature-img" src="' + escapeHtml(c1SignatureSrc) + '" alt="ลายมือชื่อ ผอ.รร.">' : '<span class="signature-line">&nbsp;</span>';
   const garudaImageUrl = 'https://img1.pic.in.th/images/images-183d7b3eabccd5225.png';
-  const orderPrintStyle = '@page{size:A4;margin:2cm 2cm 2cm 3cm}*{box-sizing:border-box}body{font-family:\'TH Sarabun New\',\'Sarabun\',sans-serif;color:#000;background:#eee;margin:0}.order-page{width:210mm;min-height:297mm;margin:0 auto;background:#fff;padding:0;font-size:16pt;line-height:1.12}.order-head{text-align:center;font-weight:700;margin-bottom:8px}.garuda-emblem{display:block;width:1.7cm;height:auto;margin:0 auto 4px}.order-title{font-size:18pt;font-weight:700}.dash{font-weight:400;margin-top:2px}p{margin:0 0 4px;text-indent:2.5cm;text-align:justify}.no-indent{text-indent:0}.item{padding-left:22px;text-indent:-22px}.subitem{padding-left:44px;text-indent:-26px}.committee-table{width:100%;border-collapse:collapse;margin:4px 0 8px 0}.committee-table td{border:none;padding:0 4px;vertical-align:top;font-size:16pt;line-height:1.12}.committee-table td:first-child{width:22px}.committee-table td:nth-child(2){width:33%}.committee-table td:nth-child(3){width:42%}.committee-table td:nth-child(4){width:18%;white-space:nowrap}.signature{width:8.5cm;text-align:center;margin-top:18px;margin-left:auto;line-height:1.15}.signature-date{margin-bottom:6px}.sign-row{height:50px;display:flex;align-items:flex-end;justify-content:center;gap:8px}.sign-prefix{white-space:nowrap}.signature-img{display:block;max-width:155px;max-height:58px;object-fit:contain;margin:0}.signature-line{display:inline-block;width:170px;border-bottom:1px dotted #000;height:28px}.sign-name{margin-top:2px;font-weight:400}@media screen{body{padding:20px}.order-page{padding:2cm 2cm 2cm 3cm;box-shadow:0 10px 30px rgba(0,0,0,.18)}}@media print{body{background:#fff}.order-page{width:auto;min-height:auto;margin:0;padding:0;box-shadow:none}}';
+  const orderPrintStyle = '@page{size:A4;margin:2cm 2cm 2cm 3cm}*{box-sizing:border-box}body{font-family:\'TH Sarabun New\',\'Sarabun\',sans-serif;color:#000;background:#eee;margin:0;letter-spacing:0;word-spacing:0}.order-page{width:210mm;min-height:297mm;margin:0 auto;background:#fff;padding:0;font-size:15pt;line-height:1.18}.order-head{text-align:center;font-weight:700;margin-bottom:10px}.garuda-emblem{display:block;width:3cm;height:auto;margin:0 auto 5px}.order-title{font-size:17pt;font-weight:700}.dash{font-weight:400;margin-top:2px}p{margin:0 0 5px;text-indent:2.5cm;text-align:left;letter-spacing:0;word-spacing:0}.no-indent{text-indent:0}.item{padding-left:22px;text-indent:-22px}.subitem{padding-left:44px;text-indent:-26px}.committee-table{width:100%;border-collapse:collapse;margin:5px 0 9px 0}.committee-table td{border:none;padding:0 4px;vertical-align:top;font-size:15pt;line-height:1.18;letter-spacing:0;word-spacing:0}.committee-table td:first-child{width:22px}.committee-table td:nth-child(2){width:33%}.committee-table td:nth-child(3){width:42%}.committee-table td:nth-child(4){width:18%;white-space:nowrap}.page-break{break-before:page;page-break-before:always;height:0}.signature{width:8.5cm;text-align:center;margin-top:22px;margin-left:auto;line-height:1.18}.signature-date{margin-bottom:8px}.sign-row{height:54px;display:flex;align-items:flex-end;justify-content:center;gap:8px}.sign-prefix{white-space:nowrap}.signature-img{display:block;max-width:155px;max-height:60px;object-fit:contain;margin:0}.signature-line{display:inline-block;width:170px;border-bottom:1px dotted #000;height:30px}.sign-name{margin-top:2px;font-weight:400}@media screen{body{padding:20px}.order-page{padding:2cm 2cm 2cm 3cm;box-shadow:0 10px 30px rgba(0,0,0,.18)}}@media print{body{background:#fff}.order-page{width:auto;min-height:auto;margin:0;padding:0;box-shadow:none}}';
   
   const content = '<main class="order-page">' +
       '<div class="order-head">' +
       '<img class="garuda-emblem" src="' + garudaImageUrl + '" alt="ตราครุฑ">' +
-      '<div class="order-title">คำสั่งโรงเรียน' + schoolName + '</div>' +
+      '<div class="order-title">คำสั่ง' + schoolFullName + '</div>' +
       '<div>ที่&nbsp;&nbsp;' + oNo + '</div>' +
       '<div>เรื่อง&nbsp;&nbsp;แต่งตั้งคณะกรรมการเตรียมความพร้อมและพัฒนาอย่างเข้ม ตำแหน่งครูผู้ช่วย</div>' +
       '<div class="dash">.................................................................</div>' +
       '</div>' +
-      '<p>อาศัยอำนาจตามความในมาตรา 19 (4) มาตรา 56 และมาตรา 78 แห่งพระราชบัญญัติระเบียบข้าราชการครูและบุคลากรทางการศึกษา พ.ศ. 2547 และที่แก้ไขเพิ่มเติม ประกอบกับพระราชบัญญัติแก้ไขเพิ่มเติมคำสั่งหัวหน้าคณะรักษาความสงบแห่งชาติ ที่ 19/2560 สั่ง ณ วันที่ 3 เมษายน พุทธศักราช 2560 พ.ศ. 2565 หนังสือสำนักงาน ก.ค.ศ. ที่ ศธ 0206.7/ว 19 ลงวันที่ 19 สิงหาคม 2568 เรื่อง หลักเกณฑ์และวิธีการเตรียมความพร้อมและพัฒนาอย่างเข้ม ตำแหน่งครูผู้ช่วย และมติ อ.ก.ค.ศ. สำนักงานเขตพื้นที่การศึกษาประถมศึกษาสกลนคร เขต 2 ครั้งที่ 1/2569 เมื่อวันที่ 28 มกราคม 2569 เรื่อง การแต่งตั้งบัญชีศึกษานิเทศก์และผู้ทรงคุณวุฒิ เพื่อเป็นกรรมการในการเตรียมความพร้อมและพัฒนาอย่างเข้ม ตำแหน่งครูผู้ช่วย สังกัดสำนักงานเขตพื้นที่การศึกษาประถมศึกษาสกลนคร เขต 2</p>' +
+      '<p>อาศัยอำนาจตามความในมาตรา 53 แห่งพระราชบัญญัติระเบียบข้าราชการครูและบุคลากรทางการศึกษา พ.ศ. 2547 และที่แก้ไขเพิ่มเติม ประกอบกับพระราชบัญญัติแก้ไขเพิ่มเติมคำสั่งหัวหน้าคณะรักษาความสงบแห่งชาติ ที่ 19/2560 สั่ง ณ วันที่ 3 เมษายน พุทธศักราช 2560 พ.ศ. 2565 หนังสือสำนักงาน ก.ค.ศ. ที่ ศธ 0206.7/ว 19 ลงวันที่ 19 สิงหาคม 2568 เรื่อง หลักเกณฑ์และวิธีการเตรียมความพร้อมและพัฒนาอย่างเข้ม ตำแหน่งครูผู้ช่วย และมติ อ.ก.ค.ศ. สำนักงานเขตพื้นที่การศึกษาประถมศึกษาสกลนคร เขต 2 ครั้งที่ 1/2569 เมื่อวันที่ 28 มกราคม 2569 เรื่อง การแต่งตั้งบัญชีศึกษานิเทศก์และผู้ทรงคุณวุฒิ เพื่อเป็นกรรมการในการเตรียมความพร้อมและพัฒนาอย่างเข้ม ตำแหน่งครูผู้ช่วย สังกัดสำนักงานเขตพื้นที่การศึกษาประถมศึกษาสกลนคร เขต 2</p>' +
       '<p>เพื่อให้การเตรียมความพร้อมและพัฒนาอย่างเข้ม ตำแหน่งครูผู้ช่วย เป็นเวลา 2 ปี ก่อนแต่งตั้งให้ดำรงตำแหน่งครู เป็นไปอย่างมีระบบ มีมาตรฐาน เป็นไปตามหลักเกณฑ์และวิธีการที่ ก.ค.ศ. กำหนด และเพื่อพัฒนาครูผู้ช่วยให้มีความรู้ ความสามารถ วินัย คุณธรรม จริยธรรม จรรยาบรรณวิชาชีพ สมรรถนะในการปฏิบัติตนและการปฏิบัติงาน ส่งผลต่อคุณภาพผู้เรียน</p>' +
-      '<p>' + schoolName + ' จึงแต่งตั้งคณะกรรมการเตรียมความพร้อมและพัฒนาอย่างเข้ม ตำแหน่งครูผู้ช่วย ของ ' + teacherName + ' ตำแหน่งครูผู้ช่วย โรงเรียน' + schoolName + ' สังกัดสำนักงานเขตพื้นที่การศึกษาประถมศึกษาสกลนคร เขต 2 ซึ่งได้รับการบรรจุและแต่งตั้งเมื่อ' + startDateText + ' และจะครบกำหนดการเตรียมความพร้อมและพัฒนาอย่างเข้มใน' + completeDateText + ' ดังนี้</p>' +
+      '<p>' + schoolFullName + ' จึงแต่งตั้งคณะกรรมการเตรียมความพร้อมและพัฒนาอย่างเข้ม ตำแหน่งครูผู้ช่วย ของ ' + teacherName + ' ตำแหน่งครูผู้ช่วย ' + schoolFullName + ' สังกัดสำนักงานเขตพื้นที่การศึกษาประถมศึกษาสกลนคร เขต 2 ซึ่งได้รับการบรรจุและแต่งตั้งเมื่อ' + startDateText + ' และจะครบกำหนดการเตรียมความพร้อมและพัฒนาอย่างเข้มใน' + completeDateText + ' ดังนี้</p>' +
       '<table class="committee-table">' +
-      '<tr><td>1.</td><td>' + c1 + '</td><td>ผู้อำนวยการโรงเรียน' + schoolName + '</td><td>ประธานกรรมการ</td></tr>' +
+      '<tr><td>1.</td><td>' + c1 + '</td><td>ผู้อำนวยการ' + schoolFullName + '</td><td>ประธานกรรมการ</td></tr>' +
       '<tr><td>2.</td><td>' + c2 + '</td><td>ครู (ในสถานศึกษา)</td><td>กรรมการ</td></tr>' +
       '<tr><td>3.</td><td>' + c3 + '</td><td>ตำแหน่ง ' + c3Pos + '</td><td>กรรมการ</td></tr>' +
       '</table>' +
+      '<div class="page-break"></div>' +
       '<p class="no-indent">มีหน้าที่ดังนี้ ให้คณะกรรมการเตรียมความพร้อมและพัฒนาอย่างเข้มดำเนินการ ดังนี้</p>' +
       '<p class="item">1. ดำเนินการพัฒนาครูผู้ช่วย ด้านวิชาชีพ ด้านสังคม และด้านคุณลักษณะส่วนบุคคล ส่งเสริม สนับสนุน ให้คำปรึกษา สอนงาน ช่วยเหลือ และแนะนำการปฏิบัติหน้าที่ โดยใช้กระบวนการชี้แนะ ดังต่อไปนี้</p>' +
       '<p class="subitem">1.1 วางแผนและกำหนดเป้าหมายในการเตรียมความพร้อมและพัฒนาอย่างเข้มร่วมกันกับครูผู้ช่วย</p>' +
@@ -1220,7 +1226,7 @@ window.printAppointmentOrder = function() {
       '<div class="signature-date">สั่ง ณ ' + oDateStr + '</div>' +
       '<div class="sign-row"><span class="sign-prefix">ลงชื่อ</span>' + c1SignatureHtml + '</div>' +
       '<div class="sign-name">(' + c1 + ')</div>' +
-      '<div>ผู้อำนวยการโรงเรียน' + schoolName + '</div>' +
+      '<div>ผู้อำนวยการ' + schoolFullName + '</div>' +
       '</div>' +
       '</main>';
 
