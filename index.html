@@ -461,6 +461,85 @@ function escapeHtml(value) {
   });
 }
 
+function getSafeImageDataUrl(value) {
+  const text = String(value || '');
+  return text.indexOf('data:image/') === 0 ? text : '';
+}
+
+function signatureFieldHtml(key, label, ap) {
+  const dataUrl = getSafeImageDataUrl(ap[key + 'Signature']);
+  const imageUrl = ap[key + 'SignatureImageUrl'] || '';
+  const previewSrc = dataUrl || imageUrl;
+  const fileId = ap[key + 'SignatureFileId'] || '';
+  const fileUrl = ap[key + 'SignatureFileUrl'] || ap[key + 'SignatureUrl'] || '';
+  const fileName = ap[key + 'SignatureName'] || '';
+  const previewHtml = previewSrc
+    ? '<img src="' + escapeHtml(previewSrc) + '" alt="ลายมือชื่อ" style="max-width:100%;max-height:88px;object-fit:contain">'
+    : '<span style="color:var(--gray);font-size:13px">ยังไม่มีลายมือชื่อ</span>';
+  const fileLink = fileUrl ? '<a href="' + escapeHtml(fileUrl) + '" target="_blank" style="font-size:12px;color:var(--primary2);font-weight:700;margin-top:6px;display:inline-block">เปิดไฟล์ลายมือชื่อ' + (fileName ? ': ' + escapeHtml(fileName) : '') + '</a>' : '';
+  return '<div class="field" style="background:var(--gray3);border:1px solid var(--border);border-radius:12px;padding:14px">' +
+    '<label>' + label + '</label>' +
+    '<input type="file" accept="image/*" onchange="handleSignatureUpload(this,\'' + key + '\')" style="background:#fff">' +
+    '<input type="hidden" id="apt-' + key + '-signature" value="' + escapeHtml(dataUrl) + '">' +
+    '<input type="hidden" id="apt-' + key + '-signature-file-id" value="' + escapeHtml(fileId) + '">' +
+    '<input type="hidden" id="apt-' + key + '-signature-file-url" value="' + escapeHtml(fileUrl) + '">' +
+    '<input type="hidden" id="apt-' + key + '-signature-image-url" value="' + escapeHtml(imageUrl) + '">' +
+    '<input type="hidden" id="apt-' + key + '-signature-name" value="' + escapeHtml(fileName) + '">' +
+    '<div id="apt-' + key + '-signature-preview" style="height:104px;background:#fff;border:1px dashed var(--border);border-radius:10px;margin-top:10px;display:flex;align-items:center;justify-content:center;padding:8px;overflow:hidden">' + previewHtml + '</div>' +
+    fileLink +
+    '<button type="button" class="btn btn-outline btn-sm" style="margin-top:10px;width:100%" onclick="clearSignature(\'' + key + '\')">ล้างลายมือชื่อ</button>' +
+    '</div>';
+}
+
+window.handleSignatureUpload = function(input, key) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  if (!file.type || file.type.indexOf('image/') !== 0) {
+    showToast('กรุณาเลือกไฟล์รูปภาพลายมือชื่อ', 'error');
+    input.value = '';
+    return;
+  }
+  if (file.size > 2 * 1024 * 1024) {
+    showToast('ไฟล์ลายมือชื่อควรมีขนาดไม่เกิน 2 MB', 'error');
+    input.value = '';
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const value = e.target.result || '';
+    document.getElementById('apt-' + key + '-signature').value = value;
+    document.getElementById('apt-' + key + '-signature-file-id').value = '';
+    document.getElementById('apt-' + key + '-signature-file-url').value = '';
+    document.getElementById('apt-' + key + '-signature-image-url').value = '';
+    document.getElementById('apt-' + key + '-signature-name').value = file.name;
+    document.getElementById('apt-' + key + '-signature-preview').innerHTML = '<img src="' + value + '" alt="ลายมือชื่อ" style="max-width:100%;max-height:88px;object-fit:contain">';
+  };
+  reader.readAsDataURL(file);
+};
+
+window.clearSignature = function(key) {
+  document.getElementById('apt-' + key + '-signature').value = '';
+  document.getElementById('apt-' + key + '-signature-file-id').value = '';
+  document.getElementById('apt-' + key + '-signature-file-url').value = '';
+  document.getElementById('apt-' + key + '-signature-image-url').value = '';
+  document.getElementById('apt-' + key + '-signature-name').value = '';
+  document.getElementById('apt-' + key + '-signature-preview').innerHTML = '<span style="color:var(--gray);font-size:13px">ยังไม่มีลายมือชื่อ</span>';
+};
+
+function getSignatureFormData(key) {
+  return {
+    signature: document.getElementById('apt-' + key + '-signature') ? document.getElementById('apt-' + key + '-signature').value : '',
+    fileId: document.getElementById('apt-' + key + '-signature-file-id') ? document.getElementById('apt-' + key + '-signature-file-id').value : '',
+    fileUrl: document.getElementById('apt-' + key + '-signature-file-url') ? document.getElementById('apt-' + key + '-signature-file-url').value : '',
+    imageUrl: document.getElementById('apt-' + key + '-signature-image-url') ? document.getElementById('apt-' + key + '-signature-image-url').value : '',
+    name: document.getElementById('apt-' + key + '-signature-name') ? document.getElementById('apt-' + key + '-signature-name').value : ''
+  };
+}
+
+function getSignatureImageSrc(ap, key) {
+  return getSafeImageDataUrl(ap[key + 'Signature']) || ap[key + 'SignatureImageUrl'] || '';
+}
+
 // ===================== GOOGLE SHEETS INIT =====================
 window.onload = async function() {
   try {
@@ -1048,12 +1127,19 @@ function pageAppointment(mc) {
   let c1Opts = '<option value="">-- เลือก ผอ.รร. --</option>'; state.directors.forEach(d => c1Opts += `<option value="${d.id}" ${ap.c1Id===d.id?'selected':''}>${d.name} (${d.school})</option>`);
   let c3Opts = '<option value="">-- เลือกผู้ทรงคุณวุฒิ --</option>'; state.experts.forEach(e => c3Opts += `<option value="${e.id}" ${ap.c3Id===e.id?'selected':''}>${e.name} (${e.position})</option>`);
   const driveFileHtml = ap.orderFileUrl ? '<div class="alert alert-info" id="apt-drive-file"><span>ไฟล์คำสั่งที่บันทึกไว้ใน Google Drive: <strong>' + (ap.orderFileName || 'คำสั่งแต่งตั้งคณะกรรมการฯ.pdf') + '</strong></span><a href="' + ap.orderFileUrl + '" target="_blank" class="btn btn-outline btn-sm" style="margin-left:auto;background:#fff">เปิดไฟล์</a></div>' : '<div class="alert alert-info" id="apt-drive-file"><span>เมื่อกดบันทึก ระบบจะสร้างไฟล์ PDF คำสั่งและเก็บไว้ใน Google Drive อัตโนมัติ</span></div>';
+  const signatureHtml = '<div style="font-size:18px;font-weight:700;color:var(--primary2);margin:24px 0 12px;border-bottom:2px solid var(--border);padding-bottom:8px;font-family:\'Prompt\',sans-serif">ลายมือชื่ออิเล็กทรอนิกส์</div>' +
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px;margin-bottom:20px">' +
+    signatureFieldHtml('c1', 'ลายมือชื่อ ผอ.รร. / ประธานกรรมการ', ap) +
+    signatureFieldHtml('c2', 'ลายมือชื่อกรรมการ คนที่ 2', ap) +
+    signatureFieldHtml('c3', 'ลายมือชื่อกรรมการ คนที่ 3', ap) +
+    '</div><div class="alert alert-info" style="font-size:13px;padding:12px;margin-top:-4px">ลายมือชื่อของ ผอ.รร. จะใช้ในคำสั่งแต่งตั้งและผลการประเมิน ส่วนกรรมการอีก 2 ท่านจะใช้ลงนามในไฟล์ผลการประเมิน</div>';
 
   mc.innerHTML = '<div class="page-header"><div class="page-title">ออกคำสั่งแต่งตั้งคณะกรรมการ</div><div class="page-sub">จัดทำคำสั่ง A4 ตามแบบ ว 19/2568</div></div><div class="card">' + teacherSelectHtml +
     '<div class="form-row"><div class="field"><label>คำสั่งโรงเรียนที่</label><input type="text" id="apt-orderno" value="' + (ap.orderNo||'') + '" placeholder="เช่น 1/2569"></div><div class="field"><label>สั่ง ณ วันที่</label><input type="text" id="apt-orderdate" value="' + (ap.orderDate||'') + '" placeholder="เช่น 15 พฤษภาคม 2569 หรือ 15/05/2569"></div></div>' +
     '<div class="field" style="margin-bottom:20px;background:var(--gray3);padding:16px;border-radius:12px"><label style="color:var(--primary2)">1. ประธานกรรมการ (ดึงจากฐานข้อมูล)</label><select id="apt-c1-id">' + c1Opts + '</select><input type="hidden" id="apt-c1-fallback" value="' + (ap.c1||'') + '"></div>' +
     '<div class="field" style="margin-bottom:20px;padding:16px;border-radius:12px;border:1px dashed var(--gray2)"><label>2. กรรมการ (ระบุชื่อเอง)</label><input type="text" id="apt-c2" value="' + (ap.c2||'') + '"></div>' +
     '<div class="field" style="margin-bottom:16px;background:var(--gray3);padding:16px;border-radius:12px"><label style="color:var(--primary2)">3. กรรมการ คนที่ 3 (ดึงจากฐานข้อมูล)</label><select id="apt-c3-id">' + c3Opts + '</select><input type="hidden" id="apt-c3-fallback" value="' + (ap.c3||'') + '"><input type="hidden" id="apt-c3-pos-fallback" value="' + (ap.c3Pos||'') + '"></div>' +
+    signatureHtml +
     driveFileHtml +
     '<div class="btn-row" style="margin-top:32px"><button class="btn btn-primary" onclick="saveAppointment()">💾 บันทึกข้อมูลแต่งตั้ง</button><button class="btn btn-outline" onclick="printAppointmentOrder()">🖨️ พิมพ์คำสั่ง A4</button></div></div>';
 }
@@ -1063,7 +1149,10 @@ function getAppointmentFormData() {
   const current = state.appointments[tid] || {};
   const c1Id = document.getElementById('apt-c1-id').value; let c1Name = document.getElementById('apt-c1-fallback').value; if(c1Id) { const d = state.directors.find(x=>x.id===c1Id); if(d) c1Name = d.name; }
   const c3Id = document.getElementById('apt-c3-id').value; let c3Name = document.getElementById('apt-c3-fallback').value; let c3Pos = document.getElementById('apt-c3-pos-fallback').value; if(c3Id) { const e = state.experts.find(x=>x.id===c3Id); if(e) { c3Name = e.name; c3Pos = e.position; } }
-  return { tid: tid, orderNo: document.getElementById('apt-orderno').value.trim(), orderDate: document.getElementById('apt-orderdate').value.trim(), c1Id: c1Id, c1: c1Name, c2: document.getElementById('apt-c2').value.trim(), c3Id: c3Id, c3: c3Name, c3Pos: c3Pos, orderFileId: current.orderFileId || '', orderFileUrl: current.orderFileUrl || '', orderFileName: current.orderFileName || '' };
+  const c1Sig = getSignatureFormData('c1');
+  const c2Sig = getSignatureFormData('c2');
+  const c3Sig = getSignatureFormData('c3');
+  return { tid: tid, orderNo: document.getElementById('apt-orderno').value.trim(), orderDate: document.getElementById('apt-orderdate').value.trim(), c1Id: c1Id, c1: c1Name, c2: document.getElementById('apt-c2').value.trim(), c3Id: c3Id, c3: c3Name, c3Pos: c3Pos, c1Signature: c1Sig.signature, c1SignatureFileId: c1Sig.fileId, c1SignatureFileUrl: c1Sig.fileUrl, c1SignatureImageUrl: c1Sig.imageUrl, c1SignatureName: c1Sig.name, c2Signature: c2Sig.signature, c2SignatureFileId: c2Sig.fileId, c2SignatureFileUrl: c2Sig.fileUrl, c2SignatureImageUrl: c2Sig.imageUrl, c2SignatureName: c2Sig.name, c3Signature: c3Sig.signature, c3SignatureFileId: c3Sig.fileId, c3SignatureFileUrl: c3Sig.fileUrl, c3SignatureImageUrl: c3Sig.imageUrl, c3SignatureName: c3Sig.name, orderFileId: current.orderFileId || '', orderFileUrl: current.orderFileUrl || '', orderFileName: current.orderFileName || '' };
 }
 
 window.saveAppointment = async function() {
@@ -1096,9 +1185,14 @@ window.printAppointmentOrder = function() {
   const teacherName = escapeHtml(teacher.name || 'นาย/นาง/นางสาว................................................');
   const startDateText = escapeHtml(formatThaiLongDateInput(teacher.startDate));
   const completeDateText = escapeHtml(getCompletionDateText(teacher.startDate));
+  const c1SignatureSrc = getSignatureImageSrc(ap, 'c1');
+  const c1SignatureHtml = c1SignatureSrc ? '<img class="signature-img" src="' + escapeHtml(c1SignatureSrc) + '" alt="ลายมือชื่อ ผอ.รร.">' : '<span class="signature-line">&nbsp;</span>';
+  const garudaImageUrl = 'https://img1.pic.in.th/images/images-183d7b3eabccd5225.png';
+  const orderPrintStyle = '@page{size:A4;margin:2cm 2cm 2cm 3cm}*{box-sizing:border-box}body{font-family:\'TH Sarabun New\',\'Sarabun\',sans-serif;color:#000;background:#eee;margin:0}.order-page{width:210mm;min-height:297mm;margin:0 auto;background:#fff;padding:0;font-size:16pt;line-height:1.12}.order-head{text-align:center;font-weight:700;margin-bottom:8px}.garuda-emblem{display:block;width:1.7cm;height:auto;margin:0 auto 4px}.order-title{font-size:18pt;font-weight:700}.dash{font-weight:400;margin-top:2px}p{margin:0 0 4px;text-indent:2.5cm;text-align:justify}.no-indent{text-indent:0}.item{padding-left:22px;text-indent:-22px}.subitem{padding-left:44px;text-indent:-26px}.committee-table{width:100%;border-collapse:collapse;margin:4px 0 8px 0}.committee-table td{border:none;padding:0 4px;vertical-align:top;font-size:16pt;line-height:1.12}.committee-table td:first-child{width:22px}.committee-table td:nth-child(2){width:33%}.committee-table td:nth-child(3){width:42%}.committee-table td:nth-child(4){width:18%;white-space:nowrap}.signature{width:8.5cm;text-align:center;margin-top:18px;margin-left:auto;line-height:1.15}.signature-date{margin-bottom:6px}.sign-row{height:50px;display:flex;align-items:flex-end;justify-content:center;gap:8px}.sign-prefix{white-space:nowrap}.signature-img{display:block;max-width:155px;max-height:58px;object-fit:contain;margin:0}.signature-line{display:inline-block;width:170px;border-bottom:1px dotted #000;height:28px}.sign-name{margin-top:2px;font-weight:400}@media screen{body{padding:20px}.order-page{padding:2cm 2cm 2cm 3cm;box-shadow:0 10px 30px rgba(0,0,0,.18)}}@media print{body{background:#fff}.order-page{width:auto;min-height:auto;margin:0;padding:0;box-shadow:none}}';
   
   const content = '<main class="order-page">' +
       '<div class="order-head">' +
+      '<img class="garuda-emblem" src="' + garudaImageUrl + '" alt="ตราครุฑ">' +
       '<div class="order-title">คำสั่งโรงเรียน' + schoolName + '</div>' +
       '<div>ที่&nbsp;&nbsp;' + oNo + '</div>' +
       '<div>เรื่อง&nbsp;&nbsp;แต่งตั้งคณะกรรมการเตรียมความพร้อมและพัฒนาอย่างเข้ม ตำแหน่งครูผู้ช่วย</div>' +
@@ -1106,7 +1200,7 @@ window.printAppointmentOrder = function() {
       '</div>' +
       '<p>อาศัยอำนาจตามความในมาตรา 19 (4) มาตรา 56 และมาตรา 78 แห่งพระราชบัญญัติระเบียบข้าราชการครูและบุคลากรทางการศึกษา พ.ศ. 2547 และที่แก้ไขเพิ่มเติม ประกอบกับพระราชบัญญัติแก้ไขเพิ่มเติมคำสั่งหัวหน้าคณะรักษาความสงบแห่งชาติ ที่ 19/2560 สั่ง ณ วันที่ 3 เมษายน พุทธศักราช 2560 พ.ศ. 2565 หนังสือสำนักงาน ก.ค.ศ. ที่ ศธ 0206.7/ว 19 ลงวันที่ 19 สิงหาคม 2568 เรื่อง หลักเกณฑ์และวิธีการเตรียมความพร้อมและพัฒนาอย่างเข้ม ตำแหน่งครูผู้ช่วย และมติ อ.ก.ค.ศ. สำนักงานเขตพื้นที่การศึกษาประถมศึกษาสกลนคร เขต 2 ครั้งที่ 1/2569 เมื่อวันที่ 28 มกราคม 2569 เรื่อง การแต่งตั้งบัญชีศึกษานิเทศก์และผู้ทรงคุณวุฒิ เพื่อเป็นกรรมการในการเตรียมความพร้อมและพัฒนาอย่างเข้ม ตำแหน่งครูผู้ช่วย สังกัดสำนักงานเขตพื้นที่การศึกษาประถมศึกษาสกลนคร เขต 2</p>' +
       '<p>เพื่อให้การเตรียมความพร้อมและพัฒนาอย่างเข้ม ตำแหน่งครูผู้ช่วย เป็นเวลา 2 ปี ก่อนแต่งตั้งให้ดำรงตำแหน่งครู เป็นไปอย่างมีระบบ มีมาตรฐาน เป็นไปตามหลักเกณฑ์และวิธีการที่ ก.ค.ศ. กำหนด และเพื่อพัฒนาครูผู้ช่วยให้มีความรู้ ความสามารถ วินัย คุณธรรม จริยธรรม จรรยาบรรณวิชาชีพ สมรรถนะในการปฏิบัติตนและการปฏิบัติงาน ส่งผลต่อคุณภาพผู้เรียน</p>' +
-      '<p>โรงเรียน' + schoolName + ' จึงแต่งตั้งคณะกรรมการเตรียมความพร้อมและพัฒนาอย่างเข้ม ตำแหน่งครูผู้ช่วย ของ ' + teacherName + ' ตำแหน่งครูผู้ช่วย โรงเรียน' + schoolName + ' สังกัดสำนักงานเขตพื้นที่การศึกษาประถมศึกษาสกลนคร เขต 2 ซึ่งได้รับการบรรจุและแต่งตั้งเมื่อ' + startDateText + ' และจะครบกำหนดการเตรียมความพร้อมและพัฒนาอย่างเข้มใน' + completeDateText + ' ดังนี้</p>' +
+      '<p>' + schoolName + ' จึงแต่งตั้งคณะกรรมการเตรียมความพร้อมและพัฒนาอย่างเข้ม ตำแหน่งครูผู้ช่วย ของ ' + teacherName + ' ตำแหน่งครูผู้ช่วย โรงเรียน' + schoolName + ' สังกัดสำนักงานเขตพื้นที่การศึกษาประถมศึกษาสกลนคร เขต 2 ซึ่งได้รับการบรรจุและแต่งตั้งเมื่อ' + startDateText + ' และจะครบกำหนดการเตรียมความพร้อมและพัฒนาอย่างเข้มใน' + completeDateText + ' ดังนี้</p>' +
       '<table class="committee-table">' +
       '<tr><td>1.</td><td>' + c1 + '</td><td>ผู้อำนวยการโรงเรียน' + schoolName + '</td><td>ประธานกรรมการ</td></tr>' +
       '<tr><td>2.</td><td>' + c2 + '</td><td>ครู (ในสถานศึกษา)</td><td>กรรมการ</td></tr>' +
@@ -1122,13 +1216,16 @@ window.printAppointmentOrder = function() {
       '<p class="item">4. พิจารณาทบทวนผลการประเมินจากข้อโต้แย้งและพยานหลักฐาน ในกรณีที่ครูผู้ช่วยมีผลการประเมินการเตรียมความพร้อมต่ำกว่าเกณฑ์การประเมิน และรายงานผลการพิจารณาทบทวนให้ผู้มีอำนาจตามมาตรา 53 ทราบ</p>' +
       '<p class="item">5. ปฏิบัติหน้าที่อื่นที่จำเป็นหรือเกี่ยวข้องกับการเตรียมความพร้อมและพัฒนาอย่างเข้ม ตำแหน่งครูผู้ช่วย</p>' +
       '<p>ทั้งนี้ ให้คณะกรรมการที่ได้รับแต่งตั้งปฏิบัติหน้าที่ด้วยความรับผิดชอบ โปร่งใส เป็นธรรม และเป็นไปตามหลักเกณฑ์และวิธีการที่ ก.ค.ศ. กำหนด เพื่อให้การเตรียมความพร้อมและพัฒนาอย่างเข้ม ตำแหน่งครูผู้ช่วย เกิดประสิทธิภาพและประสิทธิผลสูงสุด</p>' +
-      '<div class="signature">สั่ง ณ ' + oDateStr + '<br><br><br>' +
-      '(............................................... )<br>' +
-      'ผู้อำนวยการโรงเรียน' + schoolName + '</div>' +
+      '<div class="signature">' +
+      '<div class="signature-date">สั่ง ณ ' + oDateStr + '</div>' +
+      '<div class="sign-row"><span class="sign-prefix">ลงชื่อ</span>' + c1SignatureHtml + '</div>' +
+      '<div class="sign-name">(' + c1 + ')</div>' +
+      '<div>ผู้อำนวยการโรงเรียน' + schoolName + '</div>' +
+      '</div>' +
       '</main>';
 
   const w = window.open('','_blank');
-  w.document.write('<html><head><meta charset="UTF-8"><title>คำสั่งแต่งตั้งคณะกรรมการ</title><link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap" rel="stylesheet"><style>@page{size:A4;margin:2cm 1.8cm 1.8cm 2.2cm}*{box-sizing:border-box}body{font-family:\'Sarabun\',sans-serif;color:#000;background:#eee;margin:0}.order-page{width:210mm;min-height:297mm;margin:0 auto;background:#fff;padding:0;font-size:14pt;line-height:1.35}.order-head{text-align:center;font-weight:700;margin-bottom:8px}.order-title{font-size:16pt}.dash{font-weight:400;margin-top:4px}p{margin:0 0 6px;text-indent:2.5cm;text-align:justify}.no-indent{text-indent:0}.item{padding-left:22px;text-indent:-22px}.subitem{padding-left:44px;text-indent:-26px}.committee-table{width:100%;border-collapse:collapse;margin:4px 0 8px 0}.committee-table td{border:none;padding:1px 4px;vertical-align:top;font-size:14pt}.committee-table td:first-child{width:22px}.committee-table td:nth-child(2){width:33%}.committee-table td:nth-child(3){width:42%}.committee-table td:nth-child(4){width:18%;white-space:nowrap}.signature{text-align:center;margin-top:20px;margin-left:55%;line-height:1.45}@media screen{body{padding:20px}.order-page{padding:2cm 1.8cm 1.8cm 2.2cm;box-shadow:0 10px 30px rgba(0,0,0,.18)}}@media print{body{background:#fff}.order-page{width:auto;min-height:auto;margin:0;padding:0;box-shadow:none}}</style></head><body>' + content + '</body></html>');
+  w.document.write('<html><head><meta charset="UTF-8"><title>คำสั่งแต่งตั้งคณะกรรมการ</title><link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap" rel="stylesheet"><style>' + orderPrintStyle + '</style></head><body>' + content + '</body></html>');
   w.document.close(); setTimeout(function() { w.print(); }, 800);
 };
 
