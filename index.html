@@ -361,6 +361,50 @@ function parseApiJson(rawText) {
   }
 }
 
+function fetchJsonText(url, options) {
+  return fetch(url, options).then(function(res) {
+    if (!res.ok) throw new Error("HTTP Status " + res.status);
+    return res.text();
+  }).then(parseApiJson);
+}
+
+function fetchJsonp(url) {
+  return new Promise(function(resolve, reject) {
+    const callbackName = '__gasCallback_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+    const script = document.createElement('script');
+    const sep = url.indexOf('?') >= 0 ? '&' : '?';
+    const timer = setTimeout(function() {
+      cleanup();
+      reject(new Error('เชื่อมต่อ Web App ไม่สำเร็จ กรุณาตรวจว่า Deploy เป็น Anyone แล้ว'));
+    }, 15000);
+
+    function cleanup() {
+      clearTimeout(timer);
+      delete window[callbackName];
+      if (script.parentNode) script.parentNode.removeChild(script);
+    }
+
+    window[callbackName] = function(data) {
+      cleanup();
+      resolve(data);
+    };
+
+    script.onerror = function() {
+      cleanup();
+      reject(new Error('โหลดข้อมูลจาก Web App ไม่สำเร็จ'));
+    };
+
+    script.src = url + sep + 'callback=' + encodeURIComponent(callbackName);
+    document.head.appendChild(script);
+  });
+}
+
+function loadDatabaseData() {
+  const isLocalPreview = ['localhost', '127.0.0.1'].includes(location.hostname);
+  if (isLocalPreview) return fetchJsonText(getGasApiUrl("?action=getData"));
+  return fetchJsonp(GAS_API_URL + "?action=getData");
+}
+
 // ข้อมูลจำลองสำหรับใช้งานในกรณีเชื่อมต่อฐานข้อมูลไม่ได้ (Offline Mode)
 const DEFAULT_TEACHERS = [];
 const DEFAULT_DIRECTORS = [];
@@ -420,10 +464,7 @@ function escapeHtml(value) {
 // ===================== GOOGLE SHEETS INIT =====================
 window.onload = async function() {
   try {
-    const res = await fetch(getGasApiUrl("?action=getData"));
-    if (!res.ok) throw new Error("HTTP Status " + res.status);
-    
-    const responseData = parseApiJson(await res.text());
+    const responseData = await loadDatabaseData();
     
     if(responseData.status === 'success') {
       const dbData = responseData.data;
